@@ -1,0 +1,490 @@
+"""
+PROJET: PRÉDICTION DE PRIX D'ACTIONS AVEC MACHINE LEARNING
+Auteur: Fedia GUIRAT
+Description: Analyse et prédiction des prix d'actions en utilisant 
+             des indicateurs techniques et le Machine Learning
+"""
+
+# ============================================================================
+# PARTIE 1: IMPORTATION DES BIBLIOTHÈQUES
+# ============================================================================
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from datetime import datetime, timedelta
+import warnings
+import os
+warnings.filterwarnings('ignore')
+
+# Bibliothèques pour récupérer les données financières
+import yfinance as yf
+
+# Bibliothèques Machine Learning
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
+
+# Configuration des graphiques
+plt.style.use('seaborn-v0_8-darkgrid')
+sns.set_palette("husl")
+
+print("Toutes les bibliothèques importées avec succès!\n")
+
+# ============================================================================
+# PARTIE 2: PRÉPARATION DU DOSSIER IMAGES
+# ============================================================================
+
+# Créer le dossier images s'il n'existe pas
+os.makedirs('images', exist_ok=True)
+print("Dossier 'images' prêt\n")
+
+# ============================================================================
+# PARTIE 3: RÉCUPÉRATION DES DONNÉES
+# ============================================================================
+
+def telecharger_donnees(ticker, periode='2y'):
+    """
+    Télécharge les données historiques d'une action
+    
+    Paramètres:
+    -----------
+    ticker : str
+        Symbole de l'action (ex: 'AAPL' pour Apple)
+    periode : str
+        Période de données ('1y', '2y', '5y', etc.)
+    
+    Retour:
+    -------
+    DataFrame avec les données de l'action
+    """
+    print(f"Téléchargement des données pour {ticker}...")
+    
+    try:
+        # Télécharger avec auto_adjust pour éviter MultiIndex
+        data = yf.download(ticker, period=periode, progress=False, auto_adjust=True)
+        
+        # CORRECTION: Si MultiIndex, aplatir les colonnes
+        if isinstance(data.columns, pd.MultiIndex):
+            data.columns = data.columns.get_level_values(0)
+            print("   Colonnes MultiIndex aplaties")
+        
+        print(f"   {len(data)} jours de données téléchargés")
+        return data
+    except Exception as e:
+        print(f"   Erreur lors du téléchargement: {e}")
+        return None
+
+# Télécharger les données Apple
+ticker = 'AAPL'
+df = telecharger_donnees(ticker, periode='3y')
+
+# Afficher un aperçu des données
+print("\nAperçu des données:")
+print(df.head())
+print(f"\nDimensions: {df.shape}")
+print(f"Colonnes: {df.columns.tolist()}\n")
+
+# ============================================================================
+# PARTIE 4: EXPLORATION ET VISUALISATION DES DONNÉES
+# ============================================================================
+
+def visualiser_prix(df, ticker):
+    """Visualise l'évolution du prix de clôture"""
+    
+    plt.figure(figsize=(14, 6))
+    plt.plot(df.index, df['Close'], linewidth=2, color='#2E86DE', label='Prix de clôture')
+    plt.title(f'Evolution du prix de {ticker}', fontsize=16, fontweight='bold')
+    plt.xlabel('Date', fontsize=12)
+    plt.ylabel('Prix (USD)', fontsize=12)
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    plt.savefig('images/graphique_prix.png', dpi=300, bbox_inches='tight')
+    plt.show()
+    print("Graphique sauvegardé: images/graphique_prix.png\n")
+
+# Visualiser les données
+visualiser_prix(df, ticker)
+
+# Statistiques descriptives
+print("Statistiques descriptives:")
+print(df['Close'].describe())
+print()
+
+# ============================================================================
+# PARTIE 5: FEATURE ENGINEERING - INDICATEURS TECHNIQUES
+# ============================================================================
+
+def calculer_indicateurs_techniques(df):
+    """
+    Calcule les indicateurs techniques pour l'analyse
+    
+    Indicateurs calculés:
+    - SMA (Simple Moving Average): Moyenne mobile simple
+    - EMA (Exponential Moving Average): Moyenne mobile exponentielle
+    - RSI (Relative Strength Index): Force relative
+    - MACD (Moving Average Convergence Divergence)
+    - Bollinger Bands: Bandes de Bollinger
+    - Volatilité
+    """
+    
+    data = df.copy()
+    
+    print("Calcul des indicateurs techniques...")
+    
+    # 1. Moyennes mobiles simples (SMA)
+    data['SMA_10'] = data['Close'].rolling(window=10).mean()
+    data['SMA_20'] = data['Close'].rolling(window=20).mean()
+    data['SMA_50'] = data['Close'].rolling(window=50).mean()
+    
+    # 2. Moyennes mobiles exponentielles (EMA)
+    data['EMA_12'] = data['Close'].ewm(span=12, adjust=False).mean()
+    data['EMA_26'] = data['Close'].ewm(span=26, adjust=False).mean()
+    
+    # 3. MACD (Moving Average Convergence Divergence)
+    data['MACD'] = data['EMA_12'] - data['EMA_26']
+    data['Signal_Line'] = data['MACD'].ewm(span=9, adjust=False).mean()
+    
+    # 4. RSI (Relative Strength Index)
+    delta = data['Close'].diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+    rs = gain / loss
+    data['RSI'] = 100 - (100 / (1 + rs))
+    
+    # 5. Bandes de Bollinger
+    data['BB_Middle'] = data['Close'].rolling(window=20).mean()
+    bb_std = data['Close'].rolling(window=20).std()
+    data['BB_Upper'] = data['BB_Middle'] + (bb_std * 2)
+    data['BB_Lower'] = data['BB_Middle'] - (bb_std * 2)
+    
+    # 6. Volatilité
+    data['Volatility'] = data['Close'].rolling(window=10).std()
+    
+    # 7. Variation quotidienne
+    data['Daily_Return'] = data['Close'].pct_change()
+    
+    # 8. Volume moyen
+    data['Volume_SMA'] = data['Volume'].rolling(window=20).mean()
+    
+    print(f"   Indicateurs techniques calculés avec succès!")
+    print(f"   Nombre de features créées: {len(data.columns)}\n")
+    
+    return data
+
+# Calculer les indicateurs
+df_features = calculer_indicateurs_techniques(df)
+
+# ============================================================================
+# PARTIE 6: VISUALISATION DES INDICATEURS
+# ============================================================================
+
+def visualiser_indicateurs(df, ticker):
+    """Visualise les principaux indicateurs techniques"""
+    
+    print("Création des graphiques d'indicateurs...")
+    
+    fig, axes = plt.subplots(3, 1, figsize=(14, 12))
+    
+    # 1. Prix avec moyennes mobiles
+    axes[0].plot(df.index, df['Close'], label='Prix', linewidth=2, color='#2E86DE')
+    axes[0].plot(df.index, df['SMA_20'], label='SMA 20', alpha=0.7, color='#FF6B6B')
+    axes[0].plot(df.index, df['SMA_50'], label='SMA 50', alpha=0.7, color='#4ECDC4')
+    axes[0].fill_between(df.index, df['BB_Upper'], df['BB_Lower'], 
+                         alpha=0.2, label='Bandes de Bollinger', color='#95E1D3')
+    axes[0].set_title(f'Prix et Moyennes Mobiles - {ticker}', fontweight='bold', fontsize=14)
+    axes[0].legend()
+    axes[0].grid(True, alpha=0.3)
+    
+    # 2. RSI
+    axes[1].plot(df.index, df['RSI'], label='RSI', color='#A569BD', linewidth=2)
+    axes[1].axhline(y=70, color='r', linestyle='--', label='Surachat (70)', alpha=0.5)
+    axes[1].axhline(y=30, color='g', linestyle='--', label='Survente (30)', alpha=0.5)
+    axes[1].set_title('RSI (Relative Strength Index)', fontweight='bold', fontsize=14)
+    axes[1].legend()
+    axes[1].grid(True, alpha=0.3)
+    
+    # 3. MACD
+    axes[2].plot(df.index, df['MACD'], label='MACD', linewidth=2, color='#3498DB')
+    axes[2].plot(df.index, df['Signal_Line'], label='Signal', linewidth=2, color='#E74C3C')
+    axes[2].bar(df.index, df['MACD'] - df['Signal_Line'], 
+                label='Histogramme', alpha=0.3, color='#95A5A6')
+    axes[2].set_title('MACD', fontweight='bold', fontsize=14)
+    axes[2].legend()
+    axes[2].grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    plt.savefig('images/graphique_indicateurs.png', dpi=300, bbox_inches='tight')
+    plt.show()
+    print("   Graphique sauvegardé: images/graphique_indicateurs.png\n")
+
+# Visualiser les indicateurs
+visualiser_indicateurs(df_features, ticker)
+
+# ============================================================================
+# PARTIE 7: PRÉPARATION DES DONNÉES POUR LE MACHINE LEARNING
+# ============================================================================
+
+def preparer_donnees_ml(df, jours_prediction=1):
+    """
+    Prépare les données pour le Machine Learning
+    
+    Paramètres:
+    -----------
+    df : DataFrame
+        Données avec indicateurs techniques
+    jours_prediction : int
+        Nombre de jours à prédire dans le futur
+    
+    Retour:
+    -------
+    X_train, X_test, y_train, y_test, scaler, feature_names
+    """
+    
+    print("Préparation des données pour le Machine Learning...")
+    
+    # Créer la variable cible (prix à prédire)
+    df['Target'] = df['Close'].shift(-jours_prediction)
+    
+    # Supprimer les lignes avec valeurs manquantes
+    df_clean = df.dropna()
+    
+    # Sélectionner les features pour le modèle
+    feature_cols = ['Open', 'High', 'Low', 'Volume',
+                   'SMA_10', 'SMA_20', 'SMA_50',
+                   'EMA_12', 'EMA_26', 'MACD', 'Signal_Line',
+                   'RSI', 'BB_Upper', 'BB_Lower', 'Volatility',
+                   'Daily_Return', 'Volume_SMA']
+    
+    X = df_clean[feature_cols]
+    y = df_clean['Target']
+    
+    # Diviser en ensemble d'entraînement et de test (80/20)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, shuffle=False, random_state=42
+    )
+    
+    # Normalisation des données
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
+    
+    print(f"   Ensemble d'entraînement: {X_train.shape[0]} échantillons")
+    print(f"   Ensemble de test: {X_test.shape[0]} échantillons")
+    print(f"   Nombre de features: {X_train.shape[1]}\n")
+    
+    return X_train_scaled, X_test_scaled, y_train, y_test, scaler, feature_cols
+
+# Préparer les données
+X_train, X_test, y_train, y_test, scaler, features = preparer_donnees_ml(df_features)
+
+# ============================================================================
+# PARTIE 8: ENTRAÎNEMENT DES MODÈLES DE MACHINE LEARNING
+# ============================================================================
+
+def entrainer_modeles(X_train, X_test, y_train, y_test):
+    """
+    Entraîne et compare plusieurs modèles de ML
+    
+    Retour:
+    -------
+    Dictionnaire avec les modèles entraînés et leurs performances
+    """
+    
+    modeles = {}
+    resultats = {}
+    
+    print("Entraînement des modèles de Machine Learning...\n")
+    
+    # 1. Régression Linéaire
+    print("1. Régression Linéaire...")
+    lr = LinearRegression()
+    lr.fit(X_train, y_train)
+    y_pred_lr = lr.predict(X_test)
+    
+    modeles['Linear Regression'] = lr
+    resultats['Linear Regression'] = {
+        'predictions': y_pred_lr,
+        'mse': mean_squared_error(y_test, y_pred_lr),
+        'rmse': np.sqrt(mean_squared_error(y_test, y_pred_lr)),
+        'mae': mean_absolute_error(y_test, y_pred_lr),
+        'r2': r2_score(y_test, y_pred_lr)
+    }
+    print("   Régression Linéaire entraînée\n")
+    
+    # 2. Random Forest
+    print("2. Random Forest...")
+    rf = RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1)
+    rf.fit(X_train, y_train)
+    y_pred_rf = rf.predict(X_test)
+    
+    modeles['Random Forest'] = rf
+    resultats['Random Forest'] = {
+        'predictions': y_pred_rf,
+        'mse': mean_squared_error(y_test, y_pred_rf),
+        'rmse': np.sqrt(mean_squared_error(y_test, y_pred_rf)),
+        'mae': mean_absolute_error(y_test, y_pred_rf),
+        'r2': r2_score(y_test, y_pred_rf)
+    }
+    print("   Random Forest entraîné\n")
+    
+    print("Modèles entraînés avec succès!\n")
+    
+    return modeles, resultats
+
+# Entraîner les modèles
+modeles, resultats = entrainer_modeles(X_train, X_test, y_train, y_test)
+
+# ============================================================================
+# PARTIE 9: ÉVALUATION ET COMPARAISON DES MODÈLES
+# ============================================================================
+
+def afficher_performances(resultats):
+    """Affiche les performances de tous les modèles"""
+    
+    print("\n" + "="*70)
+    print("PERFORMANCES DES MODÈLES")
+    print("="*70)
+    
+    df_perf = pd.DataFrame({
+        nom: {
+            'RMSE': res['rmse'],
+            'MAE': res['mae'],
+            'R² Score': res['r2']
+        }
+        for nom, res in resultats.items()
+    }).T
+    
+    print(df_perf.to_string())
+    print("="*70)
+    
+    # Trouver le meilleur modèle
+    meilleur_modele = df_perf['R² Score'].idxmax()
+    print(f"\nMeilleur modèle: {meilleur_modele}")
+    print(f"R² Score: {df_perf.loc[meilleur_modele, 'R² Score']:.4f}\n")
+    
+    return df_perf
+
+# Afficher les performances
+df_performances = afficher_performances(resultats)
+
+# ============================================================================
+# PARTIE 10: VISUALISATION DES PRÉDICTIONS
+# ============================================================================
+
+def visualiser_predictions(y_test, resultats, ticker):
+    """Visualise les prédictions vs valeurs réelles"""
+    
+    print("Création des graphiques de prédictions...")
+    
+    fig, axes = plt.subplots(2, 1, figsize=(14, 10))
+    
+    # Graphique 1: Comparaison temporelle
+    axes[0].plot(y_test.index, y_test.values, 
+                label='Prix réel', linewidth=2, marker='o', markersize=3, color='#2E86DE')
+    
+    colors = ['#E74C3C', '#2ECC71']
+    for idx, (nom_modele, res) in enumerate(resultats.items()):
+        axes[0].plot(y_test.index, res['predictions'], 
+                    label=f'{nom_modele}', linewidth=2, alpha=0.7, color=colors[idx])
+    
+    axes[0].set_title(f'Prédictions vs Prix Réel - {ticker}', 
+                     fontsize=14, fontweight='bold')
+    axes[0].set_xlabel('Date')
+    axes[0].set_ylabel('Prix (USD)')
+    axes[0].legend()
+    axes[0].grid(True, alpha=0.3)
+    
+    # Graphique 2: Scatter plot pour le meilleur modèle
+    meilleur_modele = max(resultats.items(), 
+                         key=lambda x: x[1]['r2'])[0]
+    y_pred_best = resultats[meilleur_modele]['predictions']
+    
+    axes[1].scatter(y_test, y_pred_best, alpha=0.5, color='#3498DB')
+    axes[1].plot([y_test.min(), y_test.max()], 
+                [y_test.min(), y_test.max()], 
+                'r--', lw=2, label='Prédiction parfaite')
+    axes[1].set_title(f'Précision du modèle {meilleur_modele}', 
+                     fontsize=14, fontweight='bold')
+    axes[1].set_xlabel('Prix Réel (USD)')
+    axes[1].set_ylabel('Prix Prédit (USD)')
+    axes[1].legend()
+    axes[1].grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    plt.savefig('images/graphique_predictions.png', dpi=300, bbox_inches='tight')
+    plt.show()
+    print("   Graphique sauvegardé: images/graphique_predictions.png\n")
+
+# Visualiser les prédictions
+visualiser_predictions(y_test, resultats, ticker)
+
+# ============================================================================
+# PARTIE 11: IMPORTANCE DES FEATURES (RANDOM FOREST)
+# ============================================================================
+
+def visualiser_importance_features(modele, feature_names):
+    """Visualise l'importance des features dans le modèle Random Forest"""
+    
+    print("Création du graphique d'importance des features...")
+    
+    importances = modele['Random Forest'].feature_importances_
+    indices = np.argsort(importances)[::-1]
+    
+    plt.figure(figsize=(12, 6))
+    plt.title('Importance des Features - Random Forest', 
+             fontsize=14, fontweight='bold')
+    plt.bar(range(len(importances)), importances[indices], color='#3498DB')
+    plt.xticks(range(len(importances)), 
+              [feature_names[i] for i in indices], rotation=45, ha='right')
+    plt.ylabel('Importance')
+    plt.tight_layout()
+    plt.savefig('images/graphique_importance.png', dpi=300, bbox_inches='tight')
+    plt.show()
+    print("   Graphique sauvegardé: images/graphique_importance.png\n")
+    
+    # Afficher le top 5
+    print("Top 5 des features les plus importantes:")
+    for i in range(5):
+        print(f"   {i+1}. {feature_names[indices[i]]}: "
+              f"{importances[indices[i]]:.4f}")
+    print()
+
+# Visualiser l'importance des features
+visualiser_importance_features(modeles, features)
+
+# ============================================================================
+# PARTIE 12: RÉSUMÉ ET CONCLUSIONS
+# ============================================================================
+
+print("\n" + "="*70)
+print("RÉSUMÉ DU PROJET")
+print("="*70)
+print(f"Action analysée: {ticker}")
+print(f"Période: {df.index[0].strftime('%Y-%m-%d')} à "
+      f"{df.index[-1].strftime('%Y-%m-%d')}")
+print(f"Nombre total de jours: {len(df)}")
+print(f"Features utilisées: {len(features)}")
+print(f"Modèles testés: {len(modeles)}")
+print("\nCe projet démontre:")
+print("  - Collecte et analyse de données financières")
+print("  - Feature engineering avec indicateurs techniques")
+print("  - Machine Learning pour la prédiction")
+print("  - Évaluation et comparaison de modèles")
+print("  - Visualisation professionnelle des résultats")
+print("="*70)
+
+print("\nProjet terminé avec succès!")
+print("Fichiers générés:")
+print("   - images/graphique_prix.png")
+print("   - images/graphique_indicateurs.png")
+print("   - images/graphique_predictions.png")
+print("   - images/graphique_importance.png")
+print("\nProjet réalisé par Fedia GUIRAT")
+print("Email: fediaguirat89@gmail.com")
+print("GitHub: github.com/fediaguirat89")
+print("\nMerci d'avoir utilisé ce code!\n")
