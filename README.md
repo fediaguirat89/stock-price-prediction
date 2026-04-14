@@ -1,6 +1,6 @@
-#  Prédiction de Prix d'Actions avec Machine Learning
+# Prédiction de Prix d'Actions avec Machine Learning
 
-> Analyse technique et Machine Learning pour la prédiction de prix d'actions. Atteint un **R² de 0.85** avec Random Forest sur 3 ans de données.
+> Analyse technique et Machine Learning pour la prédiction de prix d'actions. Atteint un R² de 0.85 avec Random Forest sur 3 ans de données.
 
 **Stack** : Python • Pandas • NumPy • Scikit-learn • yfinance • Matplotlib • Seaborn
 
@@ -8,42 +8,42 @@
 
 ## Résultats
 
-### Évolution Historique & Prédictions
-![Évolution des prix](images/AAPL_evolution_prix.png)
+### Evolution Historique & Prédictions
+![Évolution des prix](images/graphique_prix.png)
 
 ### Indicateurs Techniques
-![Indicateurs techniques](images/AAPL_indicateurs_techniques.png)
+![Indicateurs techniques](images/graphique_indicateurs.png)
 
 ### Comparaison Modèles
-![Prédictions](images/AAPL_predictions.png)
+![Prédictions](images/graphique_predictions.png)
 
-###  Features les Plus Importantes
-![Importance des features](images/AAPL_feature_importance.png)
-
----
-
-##  Fonctionnalités
-
-Collecte automatique de données via Yahoo Finance API  
-Calcul de 17 indicateurs techniques (SMA, EMA, RSI, MACD, Bollinger Bands)  
-Entraînement de 2 modèles ML (Régression Linéaire, Random Forest)  
-Visualisations professionnelles automatiques  
-Évaluation avec RMSE, MAE et R² Score  
+### Features les Plus Importantes
+![Importance des features](images/graphique_importance.png)
 
 ---
 
-##  Performance
+## Fonctionnalités
+
+- Collecte automatique de données via Yahoo Finance API  
+- Calcul de 17 indicateurs techniques (SMA, EMA, RSI, MACD, Bollinger Bands)  
+- Entraînement de 2 modèles ML (Régression Linéaire, Random Forest)  
+- Visualisations professionnelles automatiques  
+- Évaluation avec RMSE, MAE et R² Score  
+
+---
+
+## Performance
 
 | Modèle | RMSE | R² Score |
 |--------|------|----------|
 | **Random Forest** | **2.18** | **0.85** |
 | Régression Linéaire | 3.45 | 0.72 |
 
-Le modèle **Random Forest** explique 85% des variations de prix.
+Le modèle Random Forest explique 85% des variations de prix.
 
 ---
 
-##  Installation
+## Installation
 
 ```bash
 # Cloner le projet
@@ -59,7 +59,7 @@ python stock_prediction.py
 
 ---
 
-##  Technologies
+## Technologies
 
 ### Data & ML
 - **Python 3.8+** : Langage principal
@@ -73,7 +73,7 @@ python stock_prediction.py
 
 ---
 
-##  Indicateurs Calculés
+## Indicateurs Calculés
 
 | Type | Indicateurs |
 |------|-------------|
@@ -87,7 +87,7 @@ python stock_prediction.py
 
 ---
 
-##  Méthodologie
+## Méthodologie
 
 1. **Collecte** : 3 ans de données historiques via API
 2. **Feature Engineering** : Calcul de 17 indicateurs techniques
@@ -98,29 +98,33 @@ python stock_prediction.py
 
 ---
 
-##  Structure
+## Structure
 
 ```
 stock-price-prediction/
-├── images/                    # Visualisations
-├── stock_prediction.py        # Code principal
-├── requirements.txt           # Dépendances
-└── README.md                  # Documentation
+├── images/
+│   ├── graphique_prix.png
+│   ├── graphique_indicateurs.png
+│   ├── graphique_predictions.png
+│   └── graphique_importance.png
+├── stock_prediction.py
+├── requirements.txt
+└── README.md
 ```
 
 ---
 
-##  Compétences Démontrées
+## Compétences Démontrées
 
- **Data Collection** : API REST, récupération automatisée  
- **Feature Engineering** : Indicateurs techniques financiers  
- **Machine Learning** : Random Forest, évaluation de modèles  
- **Data Visualization** : Graphiques professionnels  
- **Finance** : Analyse technique et marchés boursiers  
+- **Data Collection** : API REST, récupération automatisée  
+- **Feature Engineering** : Indicateurs techniques financiers  
+- **Machine Learning** : Random Forest, évaluation de modèles  
+- **Data Visualization** : Graphiques professionnels  
+- **Finance** : Analyse technique et marchés boursiers  
 
 ---
 
-##  Évolutions Possibles
+## Évolutions Possibles
 
 - Deep Learning (LSTM) pour séries temporelles
 - Analyse de sentiment (news, réseaux sociaux)
@@ -129,29 +133,29 @@ stock-price-prediction/
 
 ---
 
-##  Auteur
+## Auteur
 
 **Fedia GUIRAT**  
 Data Analyst | Machine Learning
 
- fediaguirat89@gmail.com  
- [github.com/fediaguirat89](https://github.com/fediaguirat89)  
-📍 Liège, Belgique
+Email: fediaguirat89@gmail.com  
+GitHub: [github.com/fediaguirat89](https://github.com/fediaguirat89)  
+Localisation: Liège, Belgique
 
 *Formation : Technifutur (Data Analyst 2025) | Ingénieure en Informatique*
 
 ---
 
-##  Note
+## Note
 
 Projet éducatif uniquement. Ne constitue pas un conseil financier.
 
 ---
 
-##  Licence
+## Licence
 
 MIT License - Voir `LICENSE` pour détails
 
 ---
 
-⭐ **Si ce projet vous plaît, donnez-lui une étoile !** ⭐
+Si ce projet vous plaît, donnez-lui une étoile !
